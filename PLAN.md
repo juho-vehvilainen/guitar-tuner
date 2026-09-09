@@ -31,7 +31,7 @@ written by hand, no library. Buffer 4096 samples, lag range covering 50 to
 Noise gate on RMS. Median of the last 5 readings drives the needle. In-tune
 window is plus or minus 3 cents.
 
-**Display.** Big note name, semicircle gauge from -50 to +50 cents, cents and
+**Display.** Synthwave theme shared with the Vortex 84 site (added 2026-09-09): Orbitron and Share Tech Mono, sunset-grid canvas that reacts to the mic and glows green when in tune, CRT overlays. Big note name, semicircle gauge from -50 to +50 cents, cents and
 Hz readouts, six string chips with the active one highlighted. Green when in
 tune, amber within 15 cents, red beyond. Dark theme only.
 

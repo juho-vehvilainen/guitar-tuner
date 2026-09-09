@@ -3,305 +3,290 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#05020c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Tuner">
-<meta name="description" content="Chromatic and string guitar tuner that runs in the browser.">
+<meta name="description" content="Chromatic and string guitar tuner that runs in the browser. Synthwave edition.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
 <title>Guitar Tuner</title>
 <style>
+  /* ============================================================
+     Palette lifted off the Vortex 84 poster
+     ============================================================ */
   :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --line: #2a2f3a;
-    --text: #e8eaf0;
-    --muted: #8a92a6;
-    --good: #2dd4bf;
-    --near: #f5b942;
-    --far: #ef5a5a;
-    --accent: #2dd4bf;
+    --void: #05020c;
+    --void-2: #0b0518;
+    --magenta: #ff2d95;
+    --pink: #ff5cc8;
+    --cyan: #22d3ee;
+    --blue: #2b6cff;
+    --violet: #7c3aed;
+    --orange: #ff6a1f;
+    --amber: #ffb020;
+    --green: #4ade80;
+    --text: #efe9ff;
+    --dim: #a596cf;
+    --dimmer: #6f61a0;
+    --panel: rgba(11, 5, 24, 0.72);
+    --line: rgba(165, 150, 207, 0.28);
+    --good: var(--green);
+    --near: var(--amber);
+    --far: var(--magenta);
     color-scheme: dark;
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
   body {
-    margin: 0;
-    background: var(--bg);
+    background: var(--void);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Outfit', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-weight: 300;
     -webkit-font-smoothing: antialiased;
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
     overflow: hidden;
   }
+  .mono { font-family: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace; }
+
+  /* ---------- fixed background layers ---------- */
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+  .layer { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+  .scan {
+    background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.30) 2px 3px);
+    opacity: .45; mix-blend-mode: multiply;
+  }
+  .sweep {
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(180,220,255,.055) 46%, rgba(255,255,255,0) 100%);
+    height: 34vh; top: -34vh; bottom: auto;
+    animation: sweep 9s linear infinite;
+  }
+  @keyframes sweep { to { transform: translateY(140vh); } }
+  .vig {
+    background:
+      radial-gradient(120% 90% at 50% 45%, rgba(0,0,0,0) 42%, rgba(0,0,0,.55) 82%, rgba(0,0,0,.9) 100%),
+      radial-gradient(60% 40% at 50% 100%, rgba(124,58,237,.16), rgba(0,0,0,0) 70%);
+  }
+  .scrim {
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(5,2,12,.10) 0%, rgba(5,2,12,.35) 35%, rgba(5,2,12,.55) 60%, rgba(5,2,12,.45) 100%);
+  }
+  @media (prefers-reduced-motion: reduce) { .sweep { animation: none; } }
+
+  /* ---------- layout ---------- */
   main {
+    position: relative;
+    z-index: 2;
     height: 100%;
     display: grid;
-    grid-template-rows: auto 1fr auto auto;
-    gap: 12px;
-    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+    grid-template-rows: auto auto 1fr auto auto;
+    gap: 10px;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 14px);
     max-width: 520px;
     margin: 0 auto;
   }
 
-  /* header */
-  header {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+  /* title bar */
+  .bar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   }
-  .select {
-    position: relative;
-    flex: 1;
+  .mark {
+    font-family: 'Orbitron', Impact, 'Arial Black', sans-serif;
+    font-weight: 900; font-size: 1.05rem; letter-spacing: .16em; text-transform: uppercase;
+    background: linear-gradient(178deg, #f4fbff 0%, #a8e2ff 22%, #3f86ff 44%, #12224d 51%, #ff2d95 70%, #ffc4e9 92%, #fff 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 8px rgba(255,45,149,.55)) drop-shadow(0 0 22px rgba(43,108,255,.35));
+    transform: skewX(-6deg); display: inline-block;
   }
+  .eyebrow {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: .62rem; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--cyan); opacity: .9;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* controls */
+  header { display: flex; gap: 8px; align-items: center; }
+  .select { position: relative; flex: 1; }
   .select select {
-    width: 100%;
-    appearance: none;
-    -webkit-appearance: none;
-    background: var(--panel);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 12px;
+    width: 100%; appearance: none; -webkit-appearance: none;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px;
     padding: 12px 40px 12px 14px;
-    font-size: 16px;
-    font-weight: 600;
+    font-family: 'Share Tech Mono', monospace; font-size: 15px; letter-spacing: .08em; text-transform: uppercase;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
   .select::after {
-    content: "";
-    position: absolute;
-    right: 16px; top: 50%;
+    content: ""; position: absolute; right: 16px; top: 50%;
     width: 8px; height: 8px;
-    border-right: 2px solid var(--muted);
-    border-bottom: 2px solid var(--muted);
-    transform: translateY(-70%) rotate(45deg);
-    pointer-events: none;
+    border-right: 2px solid var(--cyan); border-bottom: 2px solid var(--cyan);
+    transform: translateY(-70%) rotate(45deg); pointer-events: none;
   }
   .btn {
-    background: var(--panel);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 12px 14px;
-    font-size: 15px;
-    font-weight: 600;
-    min-height: 46px;
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 4px;
+    padding: 12px 14px; min-height: 46px;
+    font-family: 'Share Tech Mono', monospace; font-size: 14px; letter-spacing: .1em; text-transform: uppercase;
     cursor: pointer;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: border-color 120ms, color 120ms, box-shadow 120ms;
   }
-  .btn:active { background: #1e222b; }
+  .btn:active { background: rgba(30, 14, 50, .85); }
   .btn.icon { width: 46px; padding: 0; font-size: 20px; line-height: 1; }
-  .btn.on { border-color: var(--accent); color: var(--accent); }
+  .btn.on { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 12px rgba(34,211,238,.35), inset 0 0 10px rgba(34,211,238,.12); }
 
   /* gauge */
-  .gauge {
-    position: relative;
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    min-height: 0;
-  }
-  .gauge svg {
-    width: 100%;
-    max-width: 440px;
-    height: auto;
-    display: block;
-  }
+  .gauge { position: relative; display: grid; align-content: center; justify-items: center; min-height: 0; }
+  .gauge svg { width: 100%; max-width: 440px; height: auto; display: block; overflow: visible; }
   .needle {
-    transform-origin: 150px 150px;
-    transform: rotate(0deg);
+    transform-origin: 150px 150px; transform: rotate(0deg);
     transition: transform 90ms linear;
+    filter: drop-shadow(0 0 6px var(--nc, var(--magenta))) drop-shadow(0 0 16px var(--nc, var(--magenta)));
   }
-  .readout {
-    position: absolute;
-    left: 0; right: 0;
-    bottom: 12%;
-    text-align: center;
-    pointer-events: none;
-  }
+  .needle line, .needle circle { stroke: #fff; fill: #fff; transition: stroke 150ms, fill 150ms; }
+  .readout { position: absolute; left: 0; right: 0; bottom: 8%; text-align: center; pointer-events: none; }
   .note {
-    font-size: clamp(64px, 20vw, 104px);
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    transition: color 120ms;
+    font-family: 'Orbitron', Impact, 'Arial Black', sans-serif;
+    font-size: clamp(64px, 20vw, 104px); font-weight: 900; line-height: 1; letter-spacing: -.01em;
+    color: #fff;
+    text-shadow: 0 0 5px #fff, 0 0 16px var(--nc, var(--magenta)), 0 0 38px var(--nc, var(--magenta)), 0 0 80px var(--nc, var(--magenta));
+    transition: text-shadow 150ms;
   }
-  .note sup {
-    font-size: 0.42em;
-    font-weight: 700;
-    vertical-align: top;
-    margin-left: 2px;
-    color: var(--muted);
-  }
+  .note sup { font-size: .38em; font-weight: 700; vertical-align: top; margin-left: 3px; color: var(--dim); text-shadow: none; }
   .cents {
-    margin-top: 6px;
-    font-size: 22px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: var(--muted);
+    margin-top: 8px;
+    font-family: 'Share Tech Mono', monospace; font-size: 18px; letter-spacing: .18em; text-transform: uppercase;
+    font-variant-numeric: tabular-nums; color: var(--dim);
   }
-  .hz {
-    margin-top: 2px;
-    font-size: 14px;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  .gauge.idle .note, .gauge.idle .cents, .gauge.idle .hz { opacity: 0.35; }
-  .gauge.idle .needle { opacity: 0.35; }
+  .hz { margin-top: 4px; font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: .12em; color: var(--dimmer); font-variant-numeric: tabular-nums; }
+  .gauge.idle .note { opacity: .3; text-shadow: none; }
+  .gauge.idle .cents, .gauge.idle .hz { opacity: .35; }
+  .gauge.idle .needle { opacity: .35; filter: none; }
 
   /* start overlay */
-  .overlay {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-  }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; }
   .overlay button {
-    background: var(--accent);
-    color: #062a26;
-    border: 0;
-    border-radius: 999px;
+    background: transparent; color: #fff;
+    border: 1px solid var(--cyan); border-radius: 4px;
     padding: 18px 34px;
-    font-size: 18px;
-    font-weight: 800;
-    box-shadow: 0 10px 30px rgba(45, 212, 191, 0.25);
+    font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .22em; text-transform: uppercase;
+    text-shadow: 0 0 6px #fff, 0 0 18px var(--cyan);
+    box-shadow: 0 0 18px rgba(34,211,238,.45), inset 0 0 18px rgba(34,211,238,.18);
     cursor: pointer;
+    animation: pulse 2.4s ease-in-out infinite;
   }
-  .overlay button:active { transform: scale(0.98); }
-  .overlay[hidden] { display: none; }
+  .overlay button:active { transform: scale(.98); }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 18px rgba(34,211,238,.45), inset 0 0 18px rgba(34,211,238,.18); }
+    50% { box-shadow: 0 0 34px rgba(34,211,238,.8), inset 0 0 26px rgba(34,211,238,.3); }
+  }
+  @media (prefers-reduced-motion: reduce) { .overlay button { animation: none; } }
 
   /* strings */
-  .strings {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 8px;
-  }
+  .strings { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; transition: opacity 150ms; }
   .chip {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 10px 0 8px;
-    text-align: center;
-    cursor: pointer;
-    position: relative;
-    transition: border-color 120ms, background 120ms;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 10px 0 8px; text-align: center; cursor: pointer; position: relative;
+    color: var(--text);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: border-color 120ms, box-shadow 120ms;
   }
-  .chip .n { font-size: 20px; font-weight: 800; line-height: 1; }
-  .chip .n sup { font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 1px; }
-  .chip .f { font-size: 10px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
-  .chip.active { border-color: var(--accent); background: #16231f; }
+  .chip .n { font-family: 'Orbitron', sans-serif; font-size: 18px; font-weight: 700; line-height: 1; }
+  .chip .n sup { font-size: 10px; color: var(--dim); font-weight: 500; margin-left: 1px; }
+  .chip .f { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--dimmer); margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .chip.active { border-color: var(--magenta); box-shadow: 0 0 12px rgba(255,45,149,.45), inset 0 0 10px rgba(255,45,149,.15); }
+  .chip.active .n { text-shadow: 0 0 8px var(--magenta); }
+  .chip.tuned { border-color: var(--green); box-shadow: 0 0 14px rgba(74,222,128,.55), inset 0 0 12px rgba(74,222,128,.18); }
+  .chip.tuned .n { color: #fff; text-shadow: 0 0 6px #fff, 0 0 14px var(--green); }
   .chip.locked::after {
-    content: "";
-    position: absolute;
-    top: 6px; right: 6px;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
+    content: ""; position: absolute; top: 6px; right: 6px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
   }
-  .chip.tuned .n { color: var(--good); }
 
   /* footer */
-  footer {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 46px;
-  }
+  footer { display: flex; gap: 8px; align-items: center; justify-content: space-between; min-height: 46px; }
   .status {
-    color: var(--muted);
-    font-size: 14px;
-    flex: 1;
-    min-height: 1.3em;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--dim); flex: 1; min-height: 1.3em;
   }
-  .status.err { color: var(--far); }
+  .status::before { content: "> "; color: var(--cyan); }
+  .status.err { color: var(--magenta); }
 
   /* settings dialog */
   dialog {
-    background: var(--panel);
+    background: linear-gradient(180deg, #0d0620, #05020c);
     color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 20px;
-    width: min(92vw, 400px);
-    max-height: 90vh;
-    overflow: auto;
+    border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 0 40px rgba(124,58,237,.35), 0 0 0 1px rgba(34,211,238,.15);
+    padding: 22px; width: min(92vw, 400px); max-height: 90vh; overflow: auto;
   }
-  dialog::backdrop { background: rgba(0,0,0,0.6); }
-  dialog h2 { margin: 0 0 16px; font-size: 18px; }
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 0;
-    border-top: 1px solid var(--line);
+  dialog::backdrop { background: rgba(5,2,12,.75); }
+  dialog h2 {
+    margin: 0 0 14px; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: .9rem;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--cyan);
+    text-shadow: 0 0 10px rgba(34,211,238,.6);
   }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
   .row:first-of-type { border-top: 0; }
-  .row label { font-weight: 600; }
-  .row small { display: block; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .row label { font-weight: 400; font-size: 15px; }
+  .row small { display: block; color: var(--dim); font-weight: 300; margin-top: 2px; font-size: 12px; }
   .stepper { display: flex; align-items: center; gap: 6px; }
   .stepper button {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 20px;
-    cursor: pointer;
+    width: 40px; height: 40px; border-radius: 4px;
+    border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--cyan);
+    font-size: 20px; cursor: pointer;
   }
-  .stepper output {
-    min-width: 64px;
-    text-align: center;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .stepper output { min-width: 64px; text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 17px; color: #fff; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
   .seg button {
-    background: var(--bg);
-    color: var(--muted);
-    border: 0;
-    padding: 10px 12px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
+    background: rgba(255,255,255,.03); color: var(--dim); border: 0; padding: 10px 12px;
+    font-family: 'Share Tech Mono', monospace; font-size: 14px; cursor: pointer;
   }
   .seg button + button { border-left: 1px solid var(--line); }
-  .seg button.on { background: #16231f; color: var(--accent); }
+  .seg button.on { background: rgba(34,211,238,.12); color: var(--cyan); text-shadow: 0 0 8px rgba(34,211,238,.7); }
   .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-  .link { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
-  .link a { color: var(--muted); }
+  .link { color: var(--dimmer); font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .12em; text-align: center; margin-top: 12px; }
+  .link a { color: var(--dimmer); }
 </style>
 </head>
 <body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="layer scrim" aria-hidden="true"></div>
+
 <main>
+  <div class="bar">
+    <span class="mark">Tuner 84</span>
+    <span class="eyebrow" id="eyebrow">A4 440 Hz</span>
+  </div>
+
   <header>
     <div class="select">
       <select id="tuning" aria-label="Tuning"></select>
     </div>
-    <button class="btn" id="mode" aria-pressed="false" title="Toggle chromatic mode">Chromatic</button>
+    <button class="btn" id="mode" aria-pressed="false" title="Toggle chromatic mode">Chroma</button>
     <button class="btn icon" id="settingsBtn" aria-label="Settings">⚙︎</button>
   </header>
 
   <section class="gauge idle" id="gauge">
     <svg viewBox="0 0 300 175" aria-hidden="true">
-      <defs>
-        <clipPath id="clip"><rect x="0" y="0" width="300" height="152"/></clipPath>
-      </defs>
       <!-- outer arc -->
-      <path d="M 22 150 A 128 128 0 0 1 278 150" fill="none" stroke="#2a2f3a" stroke-width="10" stroke-linecap="round"/>
-      <!-- amber zones (15 cents each side, -50..-15 red, -15..-3 amber) -->
+      <path d="M 22 150 A 128 128 0 0 1 278 150" fill="none" stroke="rgba(165,150,207,.28)" stroke-width="10" stroke-linecap="round"/>
       <g id="zones"></g>
-      <!-- ticks -->
-      <g id="ticks" stroke="#4a5163" stroke-width="2"></g>
-      <g id="tickLabels" fill="#8a92a6" font-size="10" text-anchor="middle" font-family="inherit"></g>
-      <!-- needle -->
+      <g id="ticks" stroke="#6f61a0" stroke-width="2"></g>
+      <g id="tickLabels" fill="#a596cf" font-size="9" text-anchor="middle" font-family="'Share Tech Mono', monospace" letter-spacing="1"></g>
       <g class="needle" id="needle">
-        <line x1="150" y1="150" x2="150" y2="34" stroke="#e8eaf0" stroke-width="3" stroke-linecap="round"/>
-        <circle cx="150" cy="150" r="7" fill="#e8eaf0"/>
+        <line x1="150" y1="150" x2="150" y2="34" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="150" cy="150" r="7" fill="#fff"/>
       </g>
     </svg>
     <div class="readout">
@@ -310,17 +295,21 @@
       <div class="hz" id="hz">&nbsp;</div>
     </div>
     <div class="overlay" id="overlay">
-      <button id="start">Tap to start</button>
+      <button id="start">Engage</button>
     </div>
   </section>
 
   <section class="strings" id="strings"></section>
 
   <footer>
-    <div class="status" id="status">Tap start, then play a string.</div>
+    <div class="status" id="status">Engage, then play a string.</div>
     <button class="btn" id="stop" hidden>Stop</button>
   </footer>
 </main>
+
+<div class="layer scan" aria-hidden="true"></div>
+<div class="layer sweep" aria-hidden="true"></div>
+<div class="layer vig" aria-hidden="true"></div>
 
 <dialog id="settings">
   <h2>Settings</h2>
@@ -358,6 +347,11 @@
 <script>
 (() => {
   'use strict';
+
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Shared with the background renderer. energy = how loud, glow = how in tune.
+  let energy = 0, glow = 0;
 
   // ---------- data ----------
   // MIDI note numbers, low string first. Standard E2 = 40.
@@ -417,32 +411,33 @@
     tuningSel.appendChild(o);
   });
 
-  // gauge zones and ticks
   (function buildGauge() {
     const cx = 150, cy = 150, r = 128;
-    const ang = c => (-90 + (c / 50) * 90) * Math.PI / 180; // cents -> radians, 0 = up
+    const ang = c => (-90 + (c / 50) * 90) * Math.PI / 180;
     const pt = (c, rad) => [cx + rad * Math.sin(ang(c)), cy - rad * Math.cos(ang(c))];
-    const arc = (c1, c2, color) => {
+    const NS = 'http://www.w3.org/2000/svg';
+    const arc = (c1, c2, color, op) => {
       const [x1, y1] = pt(c1, r), [x2, y2] = pt(c2, r);
-      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const p = document.createElementNS(NS, 'path');
       p.setAttribute('d', `M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`);
       p.setAttribute('fill', 'none'); p.setAttribute('stroke', color);
       p.setAttribute('stroke-width', '10'); p.setAttribute('stroke-linecap', 'butt');
-      p.setAttribute('opacity', '0.35');
+      p.setAttribute('opacity', op);
       $('zones').appendChild(p);
     };
-    arc(-NEAR, -IN_TUNE, '#f5b942'); arc(IN_TUNE, NEAR, '#f5b942');
-    arc(-IN_TUNE, IN_TUNE, '#2dd4bf');
+    arc(-50, -NEAR, '#ff2d95', '.28'); arc(NEAR, 50, '#ff2d95', '.28');
+    arc(-NEAR, -IN_TUNE, '#ffb020', '.45'); arc(IN_TUNE, NEAR, '#ffb020', '.45');
+    arc(-IN_TUNE, IN_TUNE, '#4ade80', '.9');
     for (let c = -50; c <= 50; c += 5) {
       const major = c % 10 === 0;
       const [x1, y1] = pt(c, r - 12), [x2, y2] = pt(c, r - (major ? 24 : 18));
-      const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      const l = document.createElementNS(NS, 'line');
       l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
-      if (c === 0) l.setAttribute('stroke', '#2dd4bf');
+      if (c === 0) l.setAttribute('stroke', '#4ade80');
       $('ticks').appendChild(l);
       if (major && (c % 25 === 0)) {
         const [tx, ty] = pt(c, r - 36);
-        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const t = document.createElementNS(NS, 'text');
         t.setAttribute('x', tx); t.setAttribute('y', ty + 3);
         t.textContent = c === 0 ? '0' : (c > 0 ? '+' + c : String(c));
         $('tickLabels').appendChild(t);
@@ -476,6 +471,7 @@
     $('refOut').textContent = state.ref;
     $('offOut').textContent = state.offset > 0 ? '+' + state.offset : String(state.offset);
     $('offsetHint').textContent = offsetHint(state.offset);
+    $('eyebrow').textContent = `A4 ${state.ref} Hz` + (state.offset ? `  ·  ${state.offset > 0 ? '+' : ''}${state.offset} st` : '');
     [...$('names').children].forEach(b => b.classList.toggle('on', b.dataset.v === state.names));
     stringsEl.style.opacity = state.mode === 'chromatic' ? 0.45 : 1;
     renderStrings();
@@ -491,7 +487,7 @@
   tuningSel.addEventListener('change', () => { state.tuning = tuningSel.value; locked = null; save(); syncControls(); });
   $('mode').addEventListener('click', () => {
     state.mode = state.mode === 'string' ? 'chromatic' : 'string'; save(); syncControls();
-    setStatus(state.mode === 'chromatic' ? 'Chromatic mode: shows the nearest note.' : 'String mode: snaps to the nearest string.');
+    setStatus(state.mode === 'chromatic' ? 'Chromatic: nearest note.' : 'String mode: nearest string.');
   });
   $('settingsBtn').addEventListener('click', () => $('settings').showModal());
   $('closeBtn').addEventListener('click', () => $('settings').close());
@@ -515,6 +511,7 @@
   let ctx, analyser, stream, buf, running = false, rafId = 0, lastDetect = 0, lastGood = 0;
   let history = [];
   let wakeLock = null;
+  let inTune = false;
 
   async function keepAwake() {
     try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
@@ -525,10 +522,10 @@
 
   async function start() {
     if (!window.isSecureContext) {
-      setStatus('Microphone needs HTTPS. Open the page over https:// or localhost.', true); return;
+      setStatus('Microphone needs HTTPS. Open over https:// or localhost.', true); return;
     }
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('This browser does not support microphone access.', true); return;
+      setStatus('No microphone support in this browser.', true); return;
     }
     try {
       // Create the context synchronously inside the tap handler; iOS needs the gesture.
@@ -543,7 +540,7 @@
       analyser.smoothingTimeConstant = 0;
       source.connect(analyser);
       buf = new Float32Array(analyser.fftSize);
-      stream.getAudioTracks()[0].addEventListener('ended', () => { if (running) { stop(); setStatus('Microphone was released. Tap start to continue.'); } });
+      stream.getAudioTracks()[0].addEventListener('ended', () => { if (running) { stop(); setStatus('Microphone released. Engage to continue.'); } });
       running = true;
       history = [];
       $('overlay').hidden = true;
@@ -555,13 +552,14 @@
     } catch (e) {
       const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
       setStatus(denied
-        ? 'Microphone access denied. Allow it for this site in Safari settings, then reload.'
+        ? 'Mic denied. Allow it for this site in Safari settings, then reload.'
         : `Could not start audio: ${e && e.message ? e.message : e}`, true);
     }
   }
 
   function stop() {
     running = false;
+    inTune = false;
     cancelAnimationFrame(rafId);
     if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
     if (wakeLock) { try { wakeLock.release(); } catch {} wakeLock = null; }
@@ -585,6 +583,7 @@
     let sum = 0;
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     const rms = Math.sqrt(sum / buf.length);
+    energy += (clamp(rms * 6, 0, 1) - energy) * 0.25;
 
     let f = null;
     if (rms >= GATE_RMS) {
@@ -601,6 +600,7 @@
       show(med);
     } else if (now - lastGood > HOLD_MS) {
       history = [];
+      inTune = false;
       $('gauge').classList.add('idle');
     }
   }
@@ -625,7 +625,6 @@
       }
       nsdf[tau] = m > 0 ? (2 * acf) / m : 0;
     }
-    // key maxima: highest point in each positive region after the first negative crossing
     const peaks = [];
     let tau = 1;
     while (tau <= maxTau && nsdf[tau] > 0) tau++;
@@ -644,7 +643,6 @@
     let chosen = null;
     for (const p of peaks) { if (p[1] >= threshold) { chosen = p; break; } }
     if (!chosen) return null;
-    // parabolic interpolation around the chosen lag
     const i = chosen[0];
     let t = i, c = nsdf[i];
     if (i > 0 && i < maxTau) {
@@ -660,7 +658,7 @@
   }
 
   // ---------- display ----------
-  const needle = $('needle'), noteEl = $('note'), centsEl = $('cents'), hzEl = $('hz');
+  const needle = $('needle'), noteEl = $('note'), centsEl = $('cents'), hzEl = $('hz'), gaugeEl = $('gauge');
 
   function show(f) {
     let m, cents, targetFreq, stringIdx = -1;
@@ -688,30 +686,164 @@
     const { name, octave } = noteName(m);
     noteEl.innerHTML = `${name}<sup>${octave}</sup>`;
     const abs = Math.abs(cents);
-    const color = abs <= IN_TUNE ? 'var(--good)' : abs <= NEAR ? 'var(--near)' : 'var(--far)';
-    noteEl.style.color = color;
+    inTune = abs <= IN_TUNE;
+    const color = inTune ? 'var(--good)' : abs <= NEAR ? 'var(--near)' : 'var(--far)';
+    gaugeEl.style.setProperty('--nc', color);
     const shown = clamp(cents, -50, 50);
     needle.style.transform = `rotate(${(shown / 50) * 90}deg)`;
     const rounded = Math.round(cents);
-    centsEl.textContent = abs <= IN_TUNE ? 'In tune' : (rounded > 0 ? `+${rounded} ¢ sharp` : `${rounded} ¢ flat`);
+    centsEl.textContent = inTune ? 'In tune' : (rounded > 0 ? `+${rounded} ¢ sharp` : `${rounded} ¢ flat`);
     centsEl.style.color = color;
     hzEl.textContent = `${fmtHz(f)} Hz  ·  target ${fmtHz(targetFreq)} Hz`;
 
     [...stringsEl.children].forEach((chip, i) => {
       chip.classList.toggle('active', i === stringIdx);
-      chip.classList.toggle('tuned', i === stringIdx && abs <= IN_TUNE);
+      chip.classList.toggle('tuned', i === stringIdx && inTune);
     });
   }
 
   function showIdle() {
     noteEl.textContent = '–';
-    noteEl.style.color = '';
-    centsEl.textContent = ' ';
+    gaugeEl.style.removeProperty('--nc');
+    centsEl.textContent = ' ';
     centsEl.style.color = '';
-    hzEl.textContent = ' ';
+    hzEl.textContent = ' ';
     needle.style.transform = 'rotate(0deg)';
     [...stringsEl.children].forEach(c => c.classList.remove('active', 'tuned'));
   }
+
+  // ---------- background: sunset, grid horizon, starfield, ridge ----------
+  // Lifted from the Vortex 84 site. energy comes from the mic, glow from being in tune.
+  (function background() {
+    const cv = $('bg'), g2 = cv.getContext('2d');
+    let stars = [], ridge = [], phase = 0, last = 0, lastW = 0, lastH = 0;
+
+    function makeStars(W, H) {
+      const n = Math.min(160, Math.round(W * H / 9000));
+      stars = Array.from({ length: n }, () => ({
+        x: Math.random() * W, y: Math.random() * H * 0.62,
+        r: Math.random() * 1.25 + .25, tw: Math.random() * Math.PI * 2,
+        sp: Math.random() * 1.8 + .4
+      }));
+    }
+    function makeRidge(W) {
+      ridge = [];
+      let x = -40, seed = 1337;
+      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      while (x < W + 120) {
+        const w = 60 + rnd() * 140;
+        ridge.push({ x, w, h: 26 + rnd() * 88 });
+        x += w * 0.62;
+      }
+    }
+    // Mix magenta toward green as the string comes into tune.
+    const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    const MAG = [255, 45, 149], GRN = [74, 222, 128], CYN = [34, 211, 238];
+
+    function frame(t) {
+      const dt = Math.min(0.05, (t - last) / 1000) || 0.016; last = t;
+      const DPR = Math.min(devicePixelRatio || 1, 2);
+      const W = cv.clientWidth || innerWidth;
+      const H = cv.clientHeight || innerHeight;
+      const bw = Math.round(W * DPR), bh = Math.round(H * DPR);
+      if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+      if (W !== lastW || H !== lastH) { lastW = W; lastH = H; makeStars(W, H); makeRidge(W); }
+      g2.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      glow += ((running && inTune ? 1 : 0) - glow) * 0.08;
+      if (!running) energy += (0 - energy) * 0.05;
+      const e = energy;
+      phase = (phase + dt * (0.10 + e * 0.35 + glow * 0.25)) % 1;
+
+      const hy = H * 0.70;
+      const cx = W * 0.5;
+      const gridC = mix(CYN, GRN, glow);
+      const vertC = mix(MAG, GRN, glow);
+
+      g2.clearRect(0, 0, W, H);
+
+      /* sky */
+      const sky = g2.createLinearGradient(0, 0, 0, hy);
+      sky.addColorStop(0, '#05020c'); sky.addColorStop(.55, '#170a2e'); sky.addColorStop(1, '#4a1152');
+      g2.fillStyle = sky; g2.fillRect(0, 0, W, hy);
+
+      /* stars */
+      for (const s of stars) {
+        s.tw += dt * s.sp;
+        const a = (0.35 + 0.45 * Math.sin(s.tw)) * (0.6 + e * 0.7);
+        g2.globalAlpha = Math.max(0, Math.min(1, a));
+        g2.fillStyle = '#dbe7ff';
+        g2.beginPath(); g2.arc(s.x, s.y, s.r, 0, 6.2832); g2.fill();
+      }
+      g2.globalAlpha = 1;
+
+      /* sun */
+      const R = Math.min(W, H) * 0.17 * (1 + glow * 0.08);
+      const sg = g2.createLinearGradient(0, hy - R, 0, hy + R * 0.25);
+      sg.addColorStop(0, '#ffe36a'); sg.addColorStop(.45, '#ff6a1f'); sg.addColorStop(1, '#ff2d95');
+      g2.save();
+      g2.beginPath(); g2.arc(cx, hy, R, Math.PI, 0); g2.closePath(); g2.clip();
+      g2.fillStyle = sg; g2.fillRect(cx - R, hy - R, R * 2, R * 1.2);
+      g2.fillStyle = 'rgba(10,3,20,.92)';
+      for (let i = 0; i < 10; i++) {
+        const p = i / 10;
+        const y = hy - R + R * Math.pow(p, 0.6) * 1.02;
+        g2.fillRect(cx - R, y, R * 2, 2 + p * 7);
+      }
+      g2.restore();
+      g2.globalAlpha = .18 + e * .22 + glow * .15;
+      const bl = g2.createRadialGradient(cx, hy, R * .3, cx, hy, R * 2.6);
+      bl.addColorStop(0, glow > 0.5 ? '#4ade80' : '#ff6a1f'); bl.addColorStop(1, 'rgba(255,106,31,0)');
+      g2.fillStyle = bl; g2.fillRect(0, 0, W, hy + R);
+      g2.globalAlpha = 1;
+
+      /* mountain ridge */
+      g2.fillStyle = '#180a2b';
+      g2.beginPath(); g2.moveTo(-40, hy);
+      for (const m of ridge) { g2.lineTo(m.x + m.w * 0.5, hy - m.h); g2.lineTo(m.x + m.w, hy); }
+      g2.lineTo(W + 80, hy); g2.closePath(); g2.fill();
+      g2.strokeStyle = `rgba(${vertC[0]},${vertC[1]},${vertC[2]},${(0.30 + e * 0.35).toFixed(3)})`;
+      g2.lineWidth = 1.2; g2.stroke();
+
+      /* ground */
+      const gr = g2.createLinearGradient(0, hy, 0, H);
+      gr.addColorStop(0, '#12061f'); gr.addColorStop(1, '#05020c');
+      g2.fillStyle = gr; g2.fillRect(0, hy, W, H - hy);
+
+      /* grid: horizontals sliding toward the viewer */
+      const ROWS = 18, depth = H - hy;
+      g2.lineWidth = 1;
+      for (let i = 0; i < ROWS; i++) {
+        const p = (i + phase) / ROWS;
+        const y = hy + depth * Math.pow(p, 2.7);
+        const a = (0.10 + 0.55 * p) * (0.55 + e * 0.7 + glow * 0.3);
+        g2.strokeStyle = `rgba(${gridC[0]},${gridC[1]},${gridC[2]},${a.toFixed(3)})`;
+        g2.beginPath(); g2.moveTo(0, y); g2.lineTo(W, y); g2.stroke();
+      }
+      /* grid: verticals converging on the vanishing point */
+      const SP = Math.max(60, W / 9);
+      for (let k = -14; k <= 14; k++) {
+        const a = (0.30 - Math.abs(k) * 0.016) * (0.55 + e * 0.7 + glow * 0.3);
+        if (a <= 0) continue;
+        g2.strokeStyle = `rgba(${vertC[0]},${vertC[1]},${vertC[2]},${a.toFixed(3)})`;
+        g2.beginPath(); g2.moveTo(cx, hy); g2.lineTo(cx + k * SP, H); g2.stroke();
+      }
+      /* horizon glow line */
+      g2.strokeStyle = `rgba(255,255,255,${(0.30 + e * 0.45 + glow * 0.2).toFixed(3)})`;
+      g2.lineWidth = 1.4;
+      g2.beginPath(); g2.moveTo(0, hy); g2.lineTo(W, hy); g2.stroke();
+
+      if (!REDUCED) requestAnimationFrame(frame);
+    }
+
+    if (REDUCED) {
+      energy = 0.32;
+      frame(performance.now());
+      addEventListener('resize', () => frame(performance.now()), { passive: true });
+    } else {
+      requestAnimationFrame(frame);
+    }
+  })();
 
   // ---------- init ----------
   syncControls();

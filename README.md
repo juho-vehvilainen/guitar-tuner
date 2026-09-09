@@ -2,7 +2,10 @@
 
 A guitar tuner that runs in the browser, built for iPhone Safari and hosted on
 GitHub Pages. Chromatic and string modes, six tuning presets, semitone
-transpose, adjustable reference pitch.
+transpose, adjustable reference pitch. Synthwave theme lifted from the
+[Vortex 84](https://github.com/juho-vehvilainen/vortex-84) site: sunset,
+grid horizon, starfield, CRT scanlines. The background reacts to the mic
+and turns green when the string is in tune.
 
 **Live:** https://juho-vehvilainen.github.io/guitar-tuner/
 
@@ -55,6 +58,17 @@ median of the last five readings drives the needle. In tune is plus or minus
 A Node test against synthetic tones with bright, pure, and weak-fundamental
 harmonic profiles across all six strings at 44.1 and 48 kHz lands within
 1.5 cents in every case, at about 5 ms per detection on a laptop.
+
+## Theme
+
+Fonts are Orbitron, Share Tech Mono and Outfit from Google Fonts, with system
+fallbacks if offline. The background is a canvas with a sky gradient, twinkling
+stars, a slitted sun, a mountain ridge and a perspective grid that scrolls
+toward the viewer. Two values drive it: `energy` follows the microphone RMS and
+brightens the stars, grid and sun bloom; `glow` rises while the detected note
+is within 3 cents and mixes the magenta and cyan grid lines toward green.
+CRT layers (scanlines, sweeping band, vignette) sit above the content. All
+animation stops under `prefers-reduced-motion`.
 
 ## Files
 
