@@ -381,10 +381,11 @@
 
   const IN_TUNE = 3;        // cents
   const NEAR = 15;          // cents
-  const GATE_RMS = 0.0025;  // noise gate, low: iPhone mics are quiet and clarity does the real filtering
-  const CLARITY_MIN = 0.85; // MPM clarity gate
+  const GATE_RMS = 0.0012;  // noise gate, low: iPhone mics are quiet and clarity does the real filtering
+  const CLARITY_MIN = 0.85; // MPM clarity needed to acquire a new note
+  const CLARITY_HOLD = 0.6; // clarity needed to keep tracking a note already found (decaying strings get messy)
   const HISTORY = 5;        // median window
-  const HOLD_MS = 700;      // keep last reading after signal drops
+  const HOLD_MS = 1500;     // keep last reading after signal drops
   const DETECT_INTERVAL = 40; // ms between detections
 
   // ---------- state ----------
@@ -621,7 +622,11 @@
     let f = null;
     if (rms >= GATE_RMS) {
       const r = detectPitch(buf, ctx.sampleRate);
-      if (r && r.clarity >= CLARITY_MIN && r.freq > 50 && r.freq < 1500) f = r.freq;
+      if (r && r.freq > 50 && r.freq < 1500) {
+        // Hysteresis: strict to lock on, relaxed to follow the same note as it decays.
+        const near = history.length > 0 && Math.abs(1200 * Math.log2(r.freq / median(history))) < 100;
+        if (r.clarity >= CLARITY_MIN || (near && r.clarity >= CLARITY_HOLD)) f = r.freq;
+      }
     }
 
     if (f !== null) {

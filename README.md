@@ -59,9 +59,12 @@ and run through the McLeod Pitch Method:
    the low E string.
 4. Parabolic interpolation around that lag for sub-sample precision.
 
-Readings are gated on RMS (silence) and clarity (unpitched noise), and the
-median of the last five readings drives the needle. In tune is plus or minus
-3 cents.
+Readings are gated on RMS (silence) and clarity (unpitched noise). Clarity
+uses hysteresis: 0.85 to lock onto a new note, 0.6 to keep following a note
+within a semitone of the one already tracked, because a decaying string gets
+less regular long before it stops being readable. The median of the last five
+readings drives the needle, and the last reading is held for 1.5 s after the
+signal drops. In tune is plus or minus 3 cents.
 
 A Node test against synthetic tones with bright, pure, and weak-fundamental
 harmonic profiles across all six strings at 44.1 and 48 kHz lands within
