@@ -87,7 +87,7 @@
     z-index: 2;
     height: 100%;
     display: grid;
-    grid-template-rows: auto auto 1fr auto auto;
+    grid-template-rows: auto auto 1fr auto auto auto;
     gap: 10px;
     padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 14px);
     max-width: 520px;
@@ -222,6 +222,14 @@
   .status::before { content: "> "; color: var(--cyan); }
   .status.err { color: var(--magenta); }
 
+  /* mic level meter */
+  .meter { display: flex; align-items: center; gap: 10px; margin-top: -4px; }
+  .meter .lbl { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--dimmer); min-width: 28px; }
+  .meter .lbl:last-child { text-align: right; min-width: 56px; }
+  .meter .track { flex: 1; height: 4px; position: relative; background: rgba(165,150,207,.15); border-radius: 2px; overflow: visible; }
+  .meter .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan), var(--magenta)); border-radius: 2px; box-shadow: 0 0 8px rgba(34,211,238,.5); transition: width 60ms linear; }
+  .meter .gate { position: absolute; top: -3px; width: 1px; height: 10px; background: var(--amber); opacity: .8; }
+
   /* settings dialog */
   dialog {
     background: linear-gradient(180deg, #0d0620, #05020c);
@@ -305,6 +313,11 @@
     <div class="status" id="status">Engage, then play a string.</div>
     <button class="btn" id="stop" hidden>Stop</button>
   </footer>
+  <div class="meter" aria-hidden="true">
+    <span class="lbl">Mic</span>
+    <div class="track"><div class="fill" id="level"></div><div class="gate" id="gateMark"></div></div>
+    <span class="lbl" id="rate"></span>
+  </div>
 </main>
 
 <div class="layer scan" aria-hidden="true"></div>
@@ -368,7 +381,7 @@
 
   const IN_TUNE = 3;        // cents
   const NEAR = 15;          // cents
-  const GATE_RMS = 0.012;   // noise gate
+  const GATE_RMS = 0.0025;  // noise gate, low: iPhone mics are quiet and clarity does the real filtering
   const CLARITY_MIN = 0.85; // MPM clarity gate
   const HISTORY = 5;        // median window
   const HOLD_MS = 700;      // keep last reading after signal drops
@@ -528,19 +541,37 @@
       setStatus('No microphone support in this browser.', true); return;
     }
     try {
-      // Create the context synchronously inside the tap handler; iOS needs the gesture.
-      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
-      await ctx.resume();
+      const AC = window.AudioContext || window.webkitAudioContext;
+      // Unlock audio inside the tap gesture (iOS requirement), then open the mic.
+      const unlock = ctx || new AC();
+      await unlock.resume();
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true }
       });
+      const track = stream.getAudioTracks()[0];
+      // iOS can run the mic at a different rate than the context; rebuild the context to match.
+      const micRate = (track.getSettings && track.getSettings().sampleRate) || unlock.sampleRate;
+      if (unlock.sampleRate !== micRate) {
+        try { await unlock.close(); } catch {}
+        ctx = null;
+        try { ctx = new AC({ sampleRate: micRate }); } catch { ctx = new AC(); }
+      } else {
+        ctx = unlock;
+      }
+      await ctx.resume();
       const source = ctx.createMediaStreamSource(stream);
       analyser = ctx.createAnalyser();
       analyser.fftSize = 4096;
       analyser.smoothingTimeConstant = 0;
+      // Safari only reliably processes a graph that reaches the destination. Muted, so nothing is heard.
+      const mute = ctx.createGain();
+      mute.gain.value = 0;
       source.connect(analyser);
+      analyser.connect(mute);
+      mute.connect(ctx.destination);
       buf = new Float32Array(analyser.fftSize);
-      stream.getAudioTracks()[0].addEventListener('ended', () => { if (running) { stop(); setStatus('Microphone released. Engage to continue.'); } });
+      $('rate').textContent = `${Math.round(ctx.sampleRate / 100) / 10} kHz`;
+      track.addEventListener('ended', () => { if (running) { stop(); setStatus('Microphone released. Engage to continue.'); } });
       running = true;
       history = [];
       $('overlay').hidden = true;
@@ -566,6 +597,7 @@
     $('overlay').hidden = false;
     $('stop').hidden = true;
     $('gauge').classList.add('idle');
+    levelEl.style.width = '0%';
     showIdle();
     setStatus('Stopped.');
   }
@@ -584,6 +616,7 @@
     for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
     const rms = Math.sqrt(sum / buf.length);
     energy += (clamp(rms * 6, 0, 1) - energy) * 0.25;
+    levelEl.style.width = `${levelPct(rms)}%`;
 
     let f = null;
     if (rms >= GATE_RMS) {
@@ -659,6 +692,10 @@
 
   // ---------- display ----------
   const needle = $('needle'), noteEl = $('note'), centsEl = $('cents'), hzEl = $('hz'), gaugeEl = $('gauge');
+  const levelEl = $('level');
+  // Log scale so quiet phone mics still show movement: -60 dBFS -> 0 %, 0 dBFS -> 100 %.
+  const levelPct = rms => clamp((20 * Math.log10(Math.max(rms, 1e-6)) + 60) / 60 * 100, 0, 100);
+  $('gateMark').style.left = `${levelPct(GATE_RMS)}%`;
 
   function show(f) {
     let m, cents, targetFreq, stringIdx = -1;

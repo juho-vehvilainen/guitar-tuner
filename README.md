@@ -38,9 +38,17 @@ when the screen locks or you switch apps. Tap start again to resume.
 
 ## How detection works
 
-Audio comes from `getUserMedia` with echo cancellation, noise suppression and
-auto gain turned off, into an `AnalyserNode` with a 4096-sample buffer. Every
-40 ms the time-domain buffer is read and run through the McLeod Pitch Method:
+Audio comes from `getUserMedia` with echo cancellation and noise suppression
+off and auto gain on (pitch does not depend on level, and iPhone mics are
+quiet without it), into an `AnalyserNode` with a 4096-sample buffer. Three
+Safari-specific precautions: the mic is opened first and the `AudioContext`
+is rebuilt to match its sample rate if they differ; the analyser is routed
+through a muted gain node to the destination so Safari keeps processing the
+graph; and the noise gate is deliberately low, with the clarity check doing
+the real filtering. A mic level bar at the bottom of the page shows the
+input level in dBFS with an amber mark at the gate threshold, so a silent
+tuner is diagnosable at a glance. Every 40 ms the time-domain buffer is read
+and run through the McLeod Pitch Method:
 
 1. Compute the normalised square difference function for lags covering
    50 to 1500 Hz.
