@@ -116,7 +116,7 @@
 
   /* controls */
   header { display: flex; gap: 8px; align-items: center; }
-  .select { position: relative; flex: 1; }
+  .select { position: relative; flex: 1; min-width: 0; }
   .select select {
     width: 100%; appearance: none; -webkit-appearance: none;
     background: var(--panel); color: var(--text);
@@ -413,7 +413,7 @@
 
   (function buildGauge() {
     const cx = 150, cy = 150, r = 128;
-    const ang = c => (-90 + (c / 50) * 90) * Math.PI / 180;
+    const ang = c => (c / 50) * 90 * Math.PI / 180; // 0 cents points straight up
     const pt = (c, rad) => [cx + rad * Math.sin(ang(c)), cy - rad * Math.cos(ang(c))];
     const NS = 'http://www.w3.org/2000/svg';
     const arc = (c1, c2, color, op) => {
